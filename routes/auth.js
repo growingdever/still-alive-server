@@ -70,6 +70,29 @@ router.get('/regist', function(req, res) {
     });
 });
 
+router.get('/regist/validate/id', function(req, res) {
+  db.User
+    .find({
+      where: {
+        'userid': req.param('userid')
+      }
+    })
+    .success(function (user) {
+      if( user ) {
+        res.send({
+          result: RESULT_CODE_ALREADY_EXIST_USERID,
+          message: 'already exist user id'
+        });
+        return;
+      }
+
+      res.send({
+        result: RESULT_CODE_SUCCESS,
+        message: 'you can use that id!'
+      });
+    });
+});
+
 router.get('/signin', function(req, res) {
   var callbackSuccess = function() {
     res.send({
