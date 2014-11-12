@@ -14,30 +14,60 @@ router.get('/', function(req, res) {
 });
 
 router.get('/regist', function(req, res) {
-  bcrypt.hash(req.param('password'), 
-    8, 
-    function(err, hash) {
-      var data = { 
-        'userID': req.param('userid'),
-        'password': hash
-      };
-
+  async.waterfall([
+    function(callback) {
       db.User
-        .create(data)
-        .complete(function(err, user){
-          if( err ) {
-            res.send({
-              result: RESULT_CODE_ERROR,
-              message: 'error occured...'
+      .find({
+        where: {
+          'userid': req.param('userid')
+        }
+      })
+      .success(function (user) {
+        if( user ) {
+          res.send({
+            result: RESULT_CODE_ALREADY_EXIST_USERID,
+            message: 'already exist user id'
+          });
+          return;
+        }
+
+        callback(null);
+      })
+    }
+    ], function(err) {
+      if( err ) {
+        res.send({
+          result: RESULT_CODE_FAIL,
+          message: 'unknown error'
+        })
+        return;
+      }
+
+      bcrypt.hash(req.param('password'), 
+        8, 
+        function(err, hash) {
+          var data = { 
+            'userID': req.param('userid'),
+            'password': hash
+          };
+
+          db.User
+            .create(data)
+            .complete(function(err, user){
+              if( err ) {
+                res.send({
+                  result: RESULT_CODE_ERROR,
+                  message: 'error occured...'
+                });
+              } else {
+                res.send({
+                  result: RESULT_CODE_SUCCESS,
+                  message: 'welcome!'
+                })
+              }
             });
-          } else {
-            res.send({
-              result: RESULT_CODE_SUCCESS,
-              message: 'welcome!'
-            })
-          }
-        });
-  });
+      });
+    });
 });
 
 router.get('/signin', function(req, res) {
