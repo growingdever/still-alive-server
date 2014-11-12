@@ -15,6 +15,7 @@
     "jade": "~1.6.0",
     "mysql": "*",
     "sequelize": "^1.7.5",
-    "lodash": "*"
+    "lodash": "*",
+    "bcrypt": ">= 0.5.x"
   }
 }
