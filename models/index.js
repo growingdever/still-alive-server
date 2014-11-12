@@ -17,7 +17,6 @@ fs
     var model = sequelize.import(path.join(__dirname, file));
     db[model.name] = model;
   })
-sequelize.sync();
 
 Object.keys(db).forEach(function(modelName) {
   if (db[modelName].options.hasOwnProperty('associate')) {
