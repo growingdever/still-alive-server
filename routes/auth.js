@@ -27,13 +27,13 @@ router.get('/regist', function(req, res) {
         .complete(function(err, user){
           if( err ) {
             res.send({
-              'success': 0,
-              'message': err
+              result: RESULT_CODE_ERROR,
+              message: 'error occured...'
             });
           } else {
             res.send({
-              'success': 1,
-              'user': user
+              result: RESULT_CODE_SUCCESS,
+              message: 'welcome!'
             })
           }
         });
@@ -43,7 +43,7 @@ router.get('/regist', function(req, res) {
 router.get('/signin', function(req, res) {
   var callbackSuccess = function() {
     res.send({
-      success: RESULT_CODE_SUCCESS,
+      result: RESULT_CODE_SUCCESS,
       message: 'successfully sign in!'
     });
   }
