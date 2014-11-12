@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "node ./bin/www"
+    "start": "supervisor ./bin/www"
   },
   "dependencies": {
     "express": "~4.9.0",
@@ -16,6 +16,7 @@
     "mysql": "*",
     "sequelize": "^1.7.5",
     "lodash": "*",
-    "bcrypt": ">= 0.5.x"
+    "bcrypt": ">= 0.5.x",
+    "async": "*"
   }
 }
