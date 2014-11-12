@@ -7,6 +7,8 @@ var bodyParser = require('body-parser');
 
 var models = require('./models/index');
 
+config = require('./config');
+
 var app = express();
 
 // view engine setup
