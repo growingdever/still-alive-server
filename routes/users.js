@@ -2,6 +2,7 @@ var express = require('express');
 var router = express.Router();
 var db = require('../models');
 var sequelize = require('sequelize');
+var async = require('async');
 
 
 /* GET users listing. */
@@ -75,9 +76,77 @@ router.get('/ask', function(req, res) {
               result: RESULT_CODE_SUCCESS,
               message: 'send request successfully!',
               request_id: req.id
-            })
+            });
           }
         });
+    });
+});
+
+router.get('/accept', function(req, res) {
+  var req_id = req.param('req_id');
+
+  db.Request
+    .find({
+      where: { id : req_id }
+    })
+    .success(function(request) {
+      var src_id = request.userID;
+      var dest_id = request.targetUserID;
+
+      request.enabled = false;
+      request.save().success(function(){
+        async.waterfall([
+          function(callback) {
+            db.Relationship
+              .create({
+                userID: src_id,
+                targetUserID: dest_id
+              })
+              .complete(function (err, relationship){
+                if (err) {
+                  res.send({
+                    result: RESULT_CODE_DB_ERROR,
+                    message: 'error occured...'
+                  });
+                  return;
+                }
+
+                callback();
+              });
+          },
+          function(callback) {
+            db.Relationship
+              .create({
+                userID: dest_id,
+                targetUserID: src_id
+              })
+              .complete(function (err, relationship){
+                if (err) {
+                  res.send({
+                    result: RESULT_CODE_DB_ERROR,
+                    message: 'error occured...'
+                  });
+                  return;
+                }
+
+                callback(null);
+              });
+          }
+          ], function(err) {
+            if( err ) {
+              res.send({
+                result: RESULT_CODE_FAIL,
+                message: 'unknown error'
+              })
+              return;
+            }
+
+            res.send({
+              result: RESULT_CODE_SUCCESS,
+              message: 'success!'
+            });
+          });
+      });
     });
 });
 
