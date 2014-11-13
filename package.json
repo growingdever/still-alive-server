@@ -17,6 +17,7 @@
     "sequelize": "^1.7.5",
     "lodash": "*",
     "bcrypt": ">= 0.5.x",
-    "async": "*"
+    "async": "*",
+    "request": "*"
   }
 }
