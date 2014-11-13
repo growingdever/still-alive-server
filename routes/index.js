@@ -41,4 +41,27 @@ router.get('/:userid/list', function(req, res) {
     });
 });
 
+router.get('/:userid/update', function(req, res) {
+  db.User
+    .find({ where: { userID: req.param('userid') } })
+    .success(function(user) {
+      if( ! user ) {
+        res.send({
+          result: RESULT_CODE_NOT_FOUND_USERID,
+          message: 'cannot found user...'
+        });
+        return;
+      }
+
+      var date = new Date();
+      user.updatedAt = date;
+      user.save().success(function() {
+        res.send({
+          result: RESULT_CODE_SUCCESS,
+          message: 'ok. you are still alive!'
+        });
+      });
+    });
+});
+
 module.exports = router;
