@@ -1,6 +1,8 @@
 var express = require('express');
 var router = express.Router();
 var db = require('../models');
+var sequelize = require('sequelize');
+
 
 /* GET users listing. */
 router.get('/', function(req, res) {
@@ -32,6 +34,50 @@ router.get('/search', function(req, res) {
         result: RESULT_CODE_SUCCESS,
         data: arr
       });
+    });
+});
+
+router.get('/ask', function(req, res) {
+  var src_id = req.param('source_user_id');
+  var dest_id = req.param('dest_user_id');
+
+  db.User
+    .findAll({
+      where: sequelize.or(
+          { userID: src_id },
+          { userID: dest_id }
+        )
+    })
+    .success( function(users) {
+      if( users.length < 2 ) {
+        res.send({
+          result: RESULT_CODE_NOT_FOUND_USERID,
+          message: 'cannot found user...'
+        });
+        return;
+      }
+
+      var data = {
+        userID : src_id,
+        targetUserID : dest_id
+      };
+
+      db.Request
+        .create(data)
+        .complete(function(err, req){
+          if( err ) {
+            res.send({
+              result: RESULT_CODE_FAIL,
+              message: 'error occured...'
+            });
+          } else {
+            res.send({
+              result: RESULT_CODE_SUCCESS,
+              message: 'send request successfully!',
+              request_id: req.id
+            })
+          }
+        });
     });
 });
 
