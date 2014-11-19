@@ -5,6 +5,18 @@ var sequelize = require('sequelize');
 var async = require('async');
 
 
+function accessTokenCheck(req, res, next) {
+  if( ! req.param('access_token') ) {
+    res.send({
+      result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
+      message: 'give me a valid access token!'
+    });
+    return;
+  }
+
+  next();
+}
+
 /* GET users listing. */
 router.get('/', function(req, res) {
   var json = {
@@ -38,7 +50,7 @@ router.get('/search', function(req, res) {
     });
 });
 
-router.get('/ask', function(req, res) {
+router.get('/ask', accessTokenCheck, function(req, res) {
   var src_id = req.param('source_user_id');
   var dest_id = req.param('dest_user_id');
 
@@ -54,6 +66,15 @@ router.get('/ask', function(req, res) {
         res.send({
           result: RESULT_CODE_NOT_FOUND_USERID,
           message: 'cannot found user...'
+        });
+        return;
+      }
+
+      var accessToken = users[0].userID == src_id ? users[0].accessToken : users[1].accessToken;
+      if( ! accessToken || accessToken != req.param('access_token') ) {
+        res.send({
+          result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
+          message: 'give me a valid access token!'
         });
         return;
       }
@@ -82,8 +103,9 @@ router.get('/ask', function(req, res) {
     });
 });
 
-router.get('/accept', function(req, res) {
+router.get('/accept', accessTokenCheck, function(req, res) {
   var req_id = req.param('req_id');
+  var accessToken = req.param('access_token');
 
   db.Request
     .find({
@@ -93,58 +115,75 @@ router.get('/accept', function(req, res) {
       var src_id = request.userID;
       var dest_id = request.targetUserID;
 
-      request.enabled = false;
-      request.save().success(function(){
-        async.waterfall([
-          function(callback) {
-            db.Relationship
-              .create({
-                userID: src_id,
-                targetUserID: dest_id
-              })
-              .complete(function (err, relationship){
-                if (err) {
-                  res.send({
-                    result: RESULT_CODE_DB_ERROR,
-                    message: 'error occured...'
-                  });
-                  return;
-                }
-
-                callback();
-              });
-          },
-          function(callback) {
-            db.Relationship
-              .create({
-                userID: dest_id,
-                targetUserID: src_id
-              })
-              .complete(function (err, relationship){
-                if (err) {
-                  res.send({
-                    result: RESULT_CODE_DB_ERROR,
-                    message: 'error occured...'
-                  });
-                  return;
-                }
-
-                callback(null);
-              });
+      db.User
+        .find({
+          where: { 
+            userID: dest_id, 
+            accessToken: accessToken 
           }
-          ], function(err) {
-            if( err ) {
-              res.send({
-                result: RESULT_CODE_FAIL,
-                message: 'unknown error'
-              })
-              return;
-            }
-
+        })
+        .success(function(user) {
+          if( ! user ) {
             res.send({
-              result: RESULT_CODE_SUCCESS,
-              message: 'success!'
+              result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
+              message: 'not valid access token'
             });
+            return;
+          }
+
+          request.enabled = false;
+          request.save().success(function(){
+            async.waterfall([
+              function(callback) {
+                db.Relationship
+                  .create({
+                    userID: src_id,
+                    targetUserID: dest_id
+                  })
+                  .complete(function (err, relationship){
+                    if (err) {
+                      res.send({
+                        result: RESULT_CODE_DB_ERROR,
+                        message: 'error occured...'
+                      });
+                      return;
+                    }
+
+                    callback();
+                  });
+              },
+              function(callback) {
+                db.Relationship
+                  .create({
+                    userID: dest_id,
+                    targetUserID: src_id
+                  })
+                  .complete(function (err, relationship){
+                    if (err) {
+                      res.send({
+                        result: RESULT_CODE_DB_ERROR,
+                        message: 'error occured...'
+                      });
+                      return;
+                    }
+
+                    callback(null);
+                  });
+              }
+              ], function(err) {
+                if( err ) {
+                  res.send({
+                    result: RESULT_CODE_FAIL,
+                    message: 'unknown error'
+                  })
+                  return;
+                }
+
+                res.send({
+                  result: RESULT_CODE_SUCCESS,
+                  message: 'success!'
+                });
+              });
           });
       });
     });

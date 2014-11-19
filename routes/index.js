@@ -4,6 +4,18 @@ var db = require('../models');
 var request = require('request');
 
 
+function accessTokenCheck(req, res, next) {
+  if( ! req.param('access_token') ) {
+    res.send({
+      result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
+      message: 'give me a valid access token!'
+    });
+    return;
+  }
+
+  next();
+}
+
 /* GET home page. */
 router.get('/', function(req, res) {
   res.render('index', { title: 'Express' });
@@ -41,47 +53,59 @@ router.get('/test', function(req, res) {
   });
 });
 
-router.get('/:userid/list', function(req, res) {
-  db.Relationship
-    .findAll({
-      where: { userID: req.param('userid') }
-    })
-    .success( function(users) {
-      if ( ! users ) {
+router.get('/list', accessTokenCheck, function(req, res) {
+  db.User
+    .find({ where: { accessToken: req.param('access_token') } })
+    .success(function(user) {
+      if( ! user ) {
         res.send({
-          success: RESULT_CODE_FAIL,
-          message: 'failed to load data from db'
+          result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
+          message: 'give me a valid access token!'
         });
         return;
       }
 
-      var targets = [];
-      for (var i = users.length - 1; i >= 0; i--) {
-        targets.push( users[i].targetUserID );
-      };
-
-      db.User
-        .findAll({ 
-          where: { userID: targets },
-          attributes: [ 'id', 'userID', 'updatedAt' ]
+      db.Relationship
+        .findAll({
+          where: { userID: user.userID }
         })
-        .success(function(users) {
-          res.send({
-            result: RESULT_CODE_SUCCESS,
-            data: users
-          });
-        });      
+        .success( function(users) {
+          if ( ! users ) {
+            res.send({
+              success: RESULT_CODE_FAIL,
+              message: 'failed to load data from db'
+            });
+            return;
+          }
+
+          var targets = [];
+          for (var i = users.length - 1; i >= 0; i--) {
+            targets.push( users[i].targetUserID );
+          };
+
+          db.User
+            .findAll({ 
+              where: { userID: targets },
+              attributes: [ 'id', 'userID', 'updatedAt' ]
+            })
+            .success(function(users) {
+              res.send({
+                result: RESULT_CODE_SUCCESS,
+                data: users
+              });
+            });      
+        });
     });
 });
 
-router.get('/:userid/update', function(req, res) {
+router.get('/update', accessTokenCheck, function(req, res) {
   db.User
-    .find({ where: { userID: req.param('userid') } })
+    .find({ where: { accessToken: req.param('access_token') } })
     .success(function(user) {
       if( ! user ) {
         res.send({
-          result: RESULT_CODE_NOT_FOUND_USERID,
-          message: 'cannot found user...'
+          result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
+          message: 'not valid access token'
         });
         return;
       }
