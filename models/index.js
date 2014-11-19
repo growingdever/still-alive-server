@@ -2,7 +2,7 @@ var fs        = require('fs')
   , path      = require('path')
   , Sequelize = require('sequelize')
   , lodash    = require('lodash')
-  , sequelize = new Sequelize('stillalive', 'loki', 'loki190', { 
+  , sequelize = new Sequelize(DB_SCHEME_NAME, DB_USER_ID, DB_USER_PASSWORD, { 
       sync: { 
         force: true 
       } })

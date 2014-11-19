@@ -1,3 +1,5 @@
+HOST = 'growingdever.cafe24.com:7778';
+
 RESULT_CODE_FAIL = 0;
 RESULT_CODE_SUCCESS = 1;
 RESULT_CODE_AUTH_FAIL = 2;

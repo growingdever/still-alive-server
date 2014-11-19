@@ -1,11 +1,44 @@
 var express = require('express');
 var router = express.Router();
 var db = require('../models');
+var request = require('request');
 
 
 /* GET home page. */
 router.get('/', function(req, res) {
   res.render('index', { title: 'Express' });
+});
+
+router.get('/test', function(req, res) {
+  var headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'key=' + GCM_API_KEY
+  };
+
+  var registration_ids = [];
+
+  var body = {
+    'registration_ids' : registration_ids,
+    'data' : {
+      message: 'hello'
+    }
+  };
+
+  var options = {
+    url: 'https://android.googleapis.com/gcm/send',
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify(body)
+  };
+
+  request(options, function(error, response, body){
+    if( error ) {
+      res.send({success: 0});
+    }
+    else {
+      res.send({success: 1});
+    }
+  });
 });
 
 router.get('/:userid/list', function(req, res) {
