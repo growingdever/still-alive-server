@@ -94,10 +94,11 @@ router.get('/regist/validate/id', function(req, res) {
 });
 
 router.get('/signin', function(req, res) {
-  var callbackSuccess = function() {
+  var callbackSuccess = function(accessToken) {
     res.send({
       result: RESULT_CODE_SUCCESS,
-      message: 'successfully sign in!'
+      message: 'successfully sign in!',
+      accessToken: accessToken
     });
   }
   var callbackFail = function() {
@@ -136,7 +137,11 @@ router.get('/signin', function(req, res) {
           return;
         }
 
-        callbackSuccess();
+        var token = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {var r = Math.random()*16|0,v=c=='x'?r:r&0x3|0x8;return v.toString(16);});
+        user.accessToken = token;
+        user.save().success(function() {
+          callbackSuccess(token);
+        });
       });
     });
 });
