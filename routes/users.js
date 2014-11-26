@@ -51,7 +51,7 @@ router.get('/search', function(req, res) {
 });
 
 router.get('/ask', accessTokenCheck, function(req, res) {
-  var dest_id = req.param('dest_user_id');
+  var dest_id = req.param('target_userid');
 
   db.User
     .findAll({
@@ -119,7 +119,8 @@ router.get('/ask', accessTokenCheck, function(req, res) {
             else {
               res.send({
                 result: RESULT_CODE_ALREADY_EXIST_REQUEST,
-                message: 'you already request to him or her...'
+                message: 'you already request to him or her...',
+                request_id: request.id
               });
             }
           }
