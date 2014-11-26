@@ -51,13 +51,12 @@ router.get('/search', function(req, res) {
 });
 
 router.get('/ask', accessTokenCheck, function(req, res) {
-  var src_id = req.param('source_user_id');
   var dest_id = req.param('dest_user_id');
 
   db.User
     .findAll({
       where: sequelize.or(
-          { userID: src_id },
+          { accessToken: req.param('access_token') },
           { userID: dest_id }
         )
     })
@@ -70,8 +69,17 @@ router.get('/ask', accessTokenCheck, function(req, res) {
         return;
       }
 
-      var accessToken = users[0].userID == src_id ? users[0].accessToken : users[1].accessToken;
-      if( ! accessToken || accessToken != req.param('access_token') ) {
+      var src = -1, dest = -1;
+      if( users[0].accessToken == req.param('access_token') ) {
+        src = 0;
+        dest = 1;
+      }
+      else if( users[1].accessToken == req.param('access_token') ) {
+        src = 1;
+        dest = 0;
+      }
+
+      if( src == -1 ) {
         res.send({
           result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
           message: 'give me a valid access token!'
@@ -80,24 +88,40 @@ router.get('/ask', accessTokenCheck, function(req, res) {
       }
 
       var data = {
-        userID : src_id,
-        targetUserID : dest_id
+        userID : users[src].userID,
+        targetUserID : users[dest].userID
       };
 
       db.Request
-        .create(data)
-        .complete(function(err, req){
-          if( err ) {
-            res.send({
-              result: RESULT_CODE_FAIL,
-              message: 'error occured...'
-            });
-          } else {
+        .findOrCreate({ 
+          userID: data.userID, 
+          targetUserID: data.targetUserID,
+        })
+        .success(function(request, created){
+          if( created ) {
             res.send({
               result: RESULT_CODE_SUCCESS,
               message: 'send request successfully!',
-              request_id: req.id
+              request_id: request.id
             });
+          }
+          else {
+            if( request.enabled == 0 ) {
+              request.enabled = 1;
+              request.save().success(function(){
+                res.send({
+                  result: RESULT_CODE_SUCCESS,
+                  message: 'send request successfully!',
+                  request_id: request.id
+                });
+              });
+            }
+            else {
+              res.send({
+                result: RESULT_CODE_ALREADY_EXIST_REQUEST,
+                message: 'you already request to him or her...'
+              });
+            }
           }
         });
     });
