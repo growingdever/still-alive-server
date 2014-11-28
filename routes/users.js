@@ -26,6 +26,21 @@ router.get('/', function(req, res) {
   res.send(json);
 });
 
+// just for testing
+router.get('/delete', function(req, res) {
+  db.User
+    .find({ 
+      where: {
+      userID: req.param('userid')
+      }
+    })
+    .success(function(user) {
+      user.destroy().success(function() {
+        res.send({ result: 1 });
+      });
+    });
+});
+
 router.get('/search', function(req, res) {
   var subs = req.param('keyword');
   query = "userID LIKE " + '\'' + subs + '%\''; // userID LIKE 'foo%'
