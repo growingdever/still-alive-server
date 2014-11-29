@@ -143,6 +143,57 @@ router.get('/ask', accessTokenCheck, function(req, res) {
     });
 });
 
+router.get('/received_requests', accessTokenCheck, function(req, res) {
+
+  async.waterfall([
+    function(callback) {
+      db.User
+        .find({ 
+          where: { 
+            accessToken: req.param('access_token') 
+          }
+        })
+        .success(function(user){
+          callback(null, user);
+        });
+    },
+    function(user, callback) {
+      if( user == null ) {
+        res.send({
+          result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
+          message: 'give me a valid access token!'
+        });
+        return;
+      }
+
+      db.Request
+        .findAll({
+          where: sequelize.and(
+            { targetUserID: user.userID },
+            { enabled: true }
+          ),
+          attributes: ['id', 'userID', 'targetUserID']
+        })
+        .success(function(requests){
+          callback( null, requests );
+        });
+    }
+    ], function(err, requests) {
+      if( err ) {
+        res.send({
+          result: RESULT_CODE_FAIL,
+          message: 'unknown error'
+        });
+        return;
+      }
+
+      res.send({
+        result: RESULT_CODE_SUCCESS,
+        data: requests
+      });
+    });
+});
+
 router.get('/accept', accessTokenCheck, function(req, res) {
   var req_id = req.param('req_id');
   var accessToken = req.param('access_token');
@@ -215,7 +266,7 @@ router.get('/accept', accessTokenCheck, function(req, res) {
                   res.send({
                     result: RESULT_CODE_FAIL,
                     message: 'unknown error'
-                  })
+                  });
                   return;
                 }
 
