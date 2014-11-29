@@ -43,16 +43,9 @@ router.get('/delete', function(req, res) {
 });
 
 router.get('/search', function(req, res) {
-  var subs = req.param('keyword');
-  if( ! validator.isAscii(keyword) ) {
-    res.send({
-      result: RESULT_CODE_INVALID_INPUT,
-      message: 'please input askii string only'
-    });
-    return;
-  }
+  var subs = validator.escape(req.param('keyword'));
 
-  query = "userID LIKE " + '\'' + subs + '%\''; // userID LIKE 'foo%'
+  query = "userID LIKE \'" + subs + '%\''; // userID LIKE 'foo%'
   db.User
     .findAll({
       where: [ query ]
