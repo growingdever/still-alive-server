@@ -3,6 +3,7 @@ var router = express.Router();
 var db = require('../models');
 var sequelize = require('sequelize');
 var async = require('async');
+var validator = require('validator');
 
 
 function accessTokenCheck(req, res, next) {
@@ -43,6 +44,14 @@ router.get('/delete', function(req, res) {
 
 router.get('/search', function(req, res) {
   var subs = req.param('keyword');
+  if( ! validator.isAscii(keyword) ) {
+    res.send({
+      result: RESULT_CODE_INVALID_INPUT,
+      message: 'please input askii string only'
+    });
+    return;
+  }
+
   query = "userID LIKE " + '\'' + subs + '%\''; // userID LIKE 'foo%'
   db.User
     .findAll({
@@ -144,7 +153,6 @@ router.get('/ask', accessTokenCheck, function(req, res) {
 });
 
 router.get('/received_requests', accessTokenCheck, function(req, res) {
-
   async.waterfall([
     function(callback) {
       db.User
