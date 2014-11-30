@@ -2,6 +2,7 @@ var express = require('express');
 var router = express.Router();
 var db = require('../models');
 var request = require('request');
+var sequelize = require('sequelize');
 
 
 function accessTokenCheck(req, res, next) {
@@ -14,6 +15,15 @@ function accessTokenCheck(req, res, next) {
   }
 
   next();
+}
+
+function getUserByAccessToken(req, res, next) {
+  db.User
+    .find({ where: { accessToken: req.param('access_token') } })
+    .success(function(user){
+      req.user = user;
+      next();
+    });
 }
 
 /* GET home page. */
@@ -51,6 +61,57 @@ router.get('/test', function(req, res) {
       res.send({success: 1});
     }
   });
+});
+
+router.get('/test2', function(req, res){
+  db.User
+    .findAll({
+      attributes: ['userID', 'accessToken', 'updatedAt']
+    })
+    .success(function(users){
+      res.send(users);
+    });
+});
+
+router.get('/received_requests', getUserByAccessToken, function(req, res){
+  if( !req.user ) {
+    res.send({
+      result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
+      message: 'give me a valid access token!'
+    });
+    return;
+  }
+
+  db.Request
+    .findAll({
+      where: sequelize.and(
+        { targetUserID: req.user.userID },
+        { enabled: true }
+      )
+    })
+    .success(function(requests){
+      if( !requests ) {
+        res.send({
+          success: RESULT_CODE_FAIL,
+          message: 'unknown error'
+        });
+        return;
+      }
+
+      var arr = [];
+      for (var i = requests.length - 1; i >= 0; i--) {
+        arr.push({
+          request_id: requests[i].id,
+          sender_userid: requests[i].userID,
+          date: requests[i].updatedAt
+        });
+      };
+
+      res.send({
+        result: RESULT_CODE_SUCCESS,
+        datat: arr
+      });
+    });
 });
 
 router.get('/list', accessTokenCheck, function(req, res) {
