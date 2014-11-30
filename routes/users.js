@@ -18,6 +18,15 @@ function accessTokenCheck(req, res, next) {
   next();
 }
 
+function getUserByAccessToken(req, res, next) {
+  db.User
+    .find({ where: { accessToken: req.param('access_token') } })
+    .success(function(user){
+      req.user = user;
+      next();
+    });
+}
+
 /* GET users listing. */
 router.get('/', function(req, res) {
   var json = {
@@ -140,57 +149,74 @@ router.get('/ask', accessTokenCheck, function(req, res) {
                 request_id: request.id
               });
             }
+
+            // send gcm to target user
+            var headers = {
+              'Content-Type': 'application/json',
+              'Authorization': 'key=' + GCM_API_KEY
+            };
+
+            var registration_ids = [ users[dest].gcmRegistrationID ];
+
+            var body = {
+              'registration_ids' : registration_ids,
+              'data' : {
+                requestID: request.id,
+                senderID: request.userID,
+                date: request.updatedAt
+              }
+            };
+
+            var options = {
+              url: 'https://android.googleapis.com/gcm/send',
+              method: 'POST',
+              headers: headers,
+              body: JSON.stringify(body)
+            };
+
+            request(options, function(error, response, body){});
           }
         });
     });
 });
 
-router.get('/received_requests', accessTokenCheck, function(req, res) {
-  async.waterfall([
-    function(callback) {
-      db.User
-        .find({ 
-          where: { 
-            accessToken: req.param('access_token') 
-          }
-        })
-        .success(function(user){
-          callback(null, user);
-        });
-    },
-    function(user, callback) {
-      if( user == null ) {
-        res.send({
-          result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
-          message: 'give me a valid access token!'
-        });
-        return;
-      }
+router.get('/received_requests', getUserByAccessToken, function(req, res){
+  if( !req.user ) {
+    res.send({
+      result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
+      message: 'give me a valid access token!'
+    });
+    return;
+  }
 
-      db.Request
-        .findAll({
-          where: sequelize.and(
-            { targetUserID: user.userID },
-            { enabled: true }
-          ),
-          attributes: ['id', 'userID', 'targetUserID']
-        })
-        .success(function(requests){
-          callback( null, requests );
-        });
-    }
-    ], function(err, requests) {
-      if( err ) {
+  db.Request
+    .findAll({
+      where: sequelize.and(
+        { targetUserID: req.user.userID },
+        { enabled: true }
+      )
+    })
+    .success(function(requests){
+      if( !requests ) {
         res.send({
-          result: RESULT_CODE_FAIL,
+          success: RESULT_CODE_FAIL,
           message: 'unknown error'
         });
         return;
       }
 
+      var arr = [];
+      for (var i = requests.length - 1; i >= 0; i--) {
+        arr.push({
+          request_id: requests[i].id,
+          sender_userid: requests[i].userID,
+          date: requests[i].updatedAt
+        });
+      };
+
       res.send({
         result: RESULT_CODE_SUCCESS,
-        data: requests
+        data: arr
       });
     });
 });
