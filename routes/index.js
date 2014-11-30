@@ -109,7 +109,7 @@ router.get('/received_requests', getUserByAccessToken, function(req, res){
 
       res.send({
         result: RESULT_CODE_SUCCESS,
-        datat: arr
+        data: arr
       });
     });
 });
