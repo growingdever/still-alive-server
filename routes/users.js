@@ -58,7 +58,7 @@ router.get('/search', function(req, res) {
   db.User
     .findAll({
       where: [ query ],
-      order: 'updatedAt DESC'
+      order: 'userID DESC'
     })
     .success(function(users) {
       var arr = [];

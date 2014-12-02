@@ -58,7 +58,7 @@ router.get('/test2', function(req, res){
   db.User
     .findAll({
       attributes: ['userID', 'accessToken', 'updatedAt'],
-      order: 'updatedAt ASC'
+      order: 'userID ASC'
     })
     .success(function(users){
       res.send(users);
