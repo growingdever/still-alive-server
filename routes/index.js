@@ -57,7 +57,8 @@ router.get('/test', function(req, res) {
 router.get('/test2', function(req, res){
   db.User
     .findAll({
-      attributes: ['userID', 'accessToken', 'updatedAt']
+      attributes: ['userID', 'accessToken', 'updatedAt'],
+      order: 'updatedAt ASC'
     })
     .success(function(users){
       res.send(users);
@@ -97,7 +98,8 @@ router.get('/list', accessTokenCheck, function(req, res) {
           db.User
             .findAll({ 
               where: { userID: targets },
-              attributes: [ 'id', 'userID', 'updatedAt' ]
+              attributes: [ 'id', 'userID', 'updatedAt' ],
+              order: 'userID ASC'
             })
             .success(function(users) {
               res.send({

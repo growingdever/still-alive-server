@@ -57,13 +57,13 @@ router.get('/search', function(req, res) {
   query = "userID LIKE \'" + subs + '%\''; // userID LIKE 'foo%'
   db.User
     .findAll({
-      where: [ query ]
+      where: [ query ],
+      order: 'updatedAt DESC'
     })
     .success(function(users) {
       var arr = [];
       for (var i = users.length - 1; i >= 0; i--) {
         var json = {};
-        json.id = users[i].id;
         json.userID = users[i].userID;
         json.nickname = users[i].nickname;
         arr.push( json );
