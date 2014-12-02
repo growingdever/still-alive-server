@@ -222,87 +222,74 @@ router.get('/received_requests', getUserByAccessToken, function(req, res){
     });
 });
 
-router.get('/accept', accessTokenCheck, function(req, res) {
+router.get('/accept', getUserByAccessToken, function(req, res) {
   var req_id = req.param('req_id');
-  var accessToken = req.param('access_token');
 
   db.Request
     .find({
-      where: { id : req_id }
+      where: sequelize.and( { id: req_id }, { enabled: true }, { targetUserID: req.user.userID } )
     })
     .success(function(request) {
+      if( ! request ) {
+        res.send({
+          success: RESULT_CODE_NOT_EXIST_REQUEST,
+          message: 'request is not exist...'
+        });
+        return;
+      }
+
       var src_id = request.userID;
       var dest_id = request.targetUserID;
 
-      db.User
-        .find({
-          where: { 
-            userID: dest_id, 
-            accessToken: accessToken 
-          }
-        })
-        .success(function(user) {
-          if( ! user ) {
-            res.send({
-              result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
-              message: 'not valid access token'
-            });
-            return;
-          }
-
-          request.enabled = false;
-          request.save().success(function(){
-            async.waterfall([
-              function(callback) {
-                db.Relationship
-                  .create({
-                    userID: src_id,
-                    targetUserID: dest_id
-                  })
-                  .complete(function (err, relationship){
-                    if (err) {
-                      res.send({
-                        result: RESULT_CODE_DB_ERROR,
-                        message: 'error occured...'
-                      });
-                      return;
-                    }
-
-                    callback();
-                  });
-              },
-              function(callback) {
-                db.Relationship
-                  .create({
-                    userID: dest_id,
-                    targetUserID: src_id
-                  })
-                  .complete(function (err, relationship){
-                    if (err) {
-                      res.send({
-                        result: RESULT_CODE_DB_ERROR,
-                        message: 'error occured...'
-                      });
-                      return;
-                    }
-
-                    callback(null);
-                  });
-              }
-              ], function(err) {
-                if( err ) {
+      request.enabled = false;
+      request.save().success(function(){
+        async.waterfall([
+          function(callback) {
+            db.Relationship
+              .findOrCreate( { userID: src_id, targetUserID: dest_id } )
+              .success(function (relationship, created){
+                if( !created ) {
                   res.send({
-                    result: RESULT_CODE_FAIL,
-                    message: 'unknown error'
+                    success: RESULT_CODE_ALREADY_ACCEPTED_REQUEST,
+                    message: 'already accepted request...'
                   });
                   return;
                 }
-
-                res.send({
-                  result: RESULT_CODE_SUCCESS,
-                  message: 'success!'
-                });
+                callback(null);
+              })
+              .error(function(err){
+                callback(err);
               });
+          },
+          function(callback, err) {
+            if(err) {
+              callback(err);
+              return;
+            }
+
+            db.Relationship
+              .findOrCreate({ userID: dest_id, targetUserID: src_id })
+              .success(function (relationship, created){
+                callback(null);
+              })
+              .error(function(err){
+                callback(err);
+              });
+          }
+          ], function(err) {
+            if( err ) {
+              res.send({
+                result: RESULT_CODE_FAIL,
+                message: 'unknown error',
+                error: err
+              });
+              return;
+            }
+
+            res.send({
+              result: RESULT_CODE_SUCCESS,
+              message: 'success!'
+            });
           });
       });
     });
