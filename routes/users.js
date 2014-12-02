@@ -308,6 +308,43 @@ router.get('/accept', accessTokenCheck, function(req, res) {
     });
 });
 
+router.get('/reject', getUserByAccessToken, function(req, res){
+  db.Request
+    .find({ 
+      where: sequelize.and(
+        { id: req.param('req_id') }, 
+        { targetUserID: req.user.userID }, 
+        { enabled: true }
+      ) 
+    })
+    .success(function(request){
+      if( !request ) {
+        res.send({
+          success: RESULT_CODE_NOT_EXIST_REQUEST,
+          message: 'request is not exist...'
+        });
+        return;
+      }
+
+      request.enabled = false;
+      request
+        .save()
+        .success(function() {
+          res.send({
+            success: RESULT_CODE_SUCCESS,
+            message: 'successfully rejected!'
+          });
+        })
+        .error(function(err) {
+          res.send({
+            success: RESULT_CODE_FAIL,
+            message: 'failed to reject!',
+            error: err
+          });
+        });
+    });
+});
+
 
 
 module.exports = router;
