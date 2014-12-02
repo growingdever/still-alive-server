@@ -4,6 +4,7 @@ var db = require('../models');
 var sequelize = require('sequelize');
 var async = require('async');
 var validator = require('validator');
+var httprequest = require('request');
 
 
 function accessTokenCheck(req, res, next) {
@@ -174,7 +175,7 @@ router.get('/ask', accessTokenCheck, function(req, res) {
               body: JSON.stringify(body)
             };
 
-            request(options, function(error, response, body){});
+            httprequest(options, function(error, response, body){});
           }
         });
     });
