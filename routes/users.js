@@ -28,6 +28,35 @@ function getUserByAccessToken(req, res, next) {
     });
 }
 
+function sendGCM(request, gcm_id) {
+  // send gcm to target user
+  var headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'key=' + GCM_API_KEY
+  };
+
+  var registration_ids = [ gcm_id ];
+
+  var body = {
+    'registration_ids' : registration_ids,
+    'data' : {
+      requestID: request.id,
+      senderID: request.userID,
+      date: request.updatedAt
+    }
+  };
+
+  var options = {
+    url: 'https://android.googleapis.com/gcm/send',
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify(body)
+  };
+
+  httprequest(options, function(error, response, body){});
+}
+
+
 /* GET users listing. */
 router.get('/', function(req, res) {
   var json = {
@@ -77,110 +106,6 @@ router.get('/search', function(req, res) {
     });
 });
 
-router.get('/ask', accessTokenCheck, function(req, res) {
-  var dest_id = req.param('target_userid');
-
-  db.User
-    .findAll({
-      where: sequelize.or(
-          { accessToken: req.param('access_token') },
-          { userID: dest_id }
-        )
-    })
-    .success( function(users) {
-      if( users.length < 2 ) {
-        res.send({
-          result: RESULT_CODE_NOT_FOUND_USERID,
-          message: 'cannot found user...'
-        });
-        return;
-      }
-
-      var src = -1, dest = -1;
-      if( users[0].accessToken == req.param('access_token') ) {
-        src = 0;
-        dest = 1;
-      }
-      else if( users[1].accessToken == req.param('access_token') ) {
-        src = 1;
-        dest = 0;
-      }
-
-      if( src == -1 ) {
-        res.send({
-          result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
-          message: 'give me a valid access token!'
-        });
-        return;
-      }
-
-      var data = {
-        userID : users[src].userID,
-        targetUserID : users[dest].userID
-      };
-
-      db.Request
-        .findOrCreate({ 
-          userID: data.userID, 
-          targetUserID: data.targetUserID,
-        })
-        .success(function(request, created){
-          if( created ) {
-            res.send({
-              result: RESULT_CODE_SUCCESS,
-              message: 'send request successfully!',
-              request_id: request.id
-            });
-          }
-          else {
-            if( request.enabled == 0 ) {
-              request.enabled = 1;
-              request.save().success(function(){
-                res.send({
-                  result: RESULT_CODE_SUCCESS,
-                  message: 'send request successfully!',
-                  request_id: request.id
-                });
-              });
-            }
-            else {
-              res.send({
-                result: RESULT_CODE_ALREADY_EXIST_REQUEST,
-                message: 'you already request to him or her...',
-                request_id: request.id
-              });
-            }
-
-            // send gcm to target user
-            var headers = {
-              'Content-Type': 'application/json',
-              'Authorization': 'key=' + GCM_API_KEY
-            };
-
-            var registration_ids = [ users[dest].gcmRegistrationID ];
-
-            var body = {
-              'registration_ids' : registration_ids,
-              'data' : {
-                requestID: request.id,
-                senderID: request.userID,
-                date: request.updatedAt
-              }
-            };
-
-            var options = {
-              url: 'https://android.googleapis.com/gcm/send',
-              method: 'POST',
-              headers: headers,
-              body: JSON.stringify(body)
-            };
-
-            httprequest(options, function(error, response, body){});
-          }
-        });
-    });
-});
-
 router.get('/received_requests', getUserByAccessToken, function(req, res){
   if( !req.user ) {
     res.send({
@@ -218,6 +143,44 @@ router.get('/received_requests', getUserByAccessToken, function(req, res){
       res.send({
         result: RESULT_CODE_SUCCESS,
         data: arr
+      });
+    });
+});
+
+router.get('/ask', getUserByAccessToken, function(req, res) {
+  function sendRequest(request) {
+    db.User
+      .find({ where: { userID: request.targetUserID } })
+      .success(function(user){
+        res.send({
+          result: RESULT_CODE_SUCCESS,
+          message: 'send request successfully!',
+          request_id: request.id
+        });
+        sendGCM(request, user.gcm_id);
+      });
+  }
+
+  db.Request
+    .findOrCreate( { userID: req.user.userID, targetUserID: req.param('target_userid') } )
+    .success(function (request, created){
+      // completely new request instance!
+      if( created ) {
+        sendRequest(request);        
+        return;
+      }
+
+      request.enabled = true;
+      request.save()
+        .success(function(){
+          sendRequest(request);
+        });
+    })
+    .error(function(err){
+      res.send({
+        result: RESULT_CODE_FAIL,
+        message: 'unknown error',
+        error: err
       });
     });
 });
