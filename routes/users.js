@@ -124,6 +124,7 @@ router.get('/search', getUserByAccessToken, function(req, res) {
             for (var j = users.length - 1; j >= 0; j--) {
               if( requests[i].targetUserID == users[j].userID ) {
                 users[j].sent = true;
+                users[j].reqID = requests[i].id;
               }
             };
           };
@@ -173,6 +174,13 @@ router.get('/search', getUserByAccessToken, function(req, res) {
         }
         if( users[i].friend ) {
           json.friend = true;
+        }
+
+        if( users[i].reqID ) {
+          json.reqID = users[i].reqID;
+        }
+        else {
+          json.reqID = -1;
         }
 
         arr.push(json);
@@ -334,6 +342,43 @@ router.get('/accept', getUserByAccessToken, function(req, res) {
             });
           });
       });
+    });
+});
+
+router.get('/cancel', getUserByAccessToken, function(req, res){
+  db.Request
+    .find({ 
+      where: sequelize.and(
+        { id: req.param('req_id') }, 
+        { userID: req.user.userID }, 
+        { enabled: true }
+      ) 
+    })
+    .success(function(request){
+      if( !request ) {
+        res.send({
+          success: RESULT_CODE_NOT_EXIST_REQUEST,
+          message: 'request is not exist...'
+        });
+        return;
+      }
+
+      request.enabled = false;
+      request
+        .save()
+        .success(function() {
+          res.send({
+            success: RESULT_CODE_SUCCESS,
+            message: 'successfully rejected!'
+          });
+        })
+        .error(function(err) {
+          res.send({
+            success: RESULT_CODE_FAIL,
+            message: 'failed to reject!',
+            error: err
+          });
+        });
     });
 });
 
