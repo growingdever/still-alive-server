@@ -20,12 +20,28 @@ function accessTokenCheck(req, res, next) {
 }
 
 function getUserByAccessToken(req, res, next) {
+  if( !req.param('access_token') ) {
+    res.send({
+      result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
+      message: 'give me a valid access token!'
+    });
+    return;
+  }
+
   db.User
     .find({ where: { accessToken: req.param('access_token') } })
     .success(function(user){
+      if( !user ) {
+        res.send({
+          result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
+          message: 'give me a valid access token!'
+        });
+        return;
+      }
+
       req.user = user;
       next();
-    });
+    })
 }
 
 function sendGCM(request, gcm_id) {
@@ -71,7 +87,7 @@ router.get('/delete', function(req, res) {
   db.User
     .find({ 
       where: {
-      userID: req.param('userid')
+        userID: req.param('userid')
       }
     })
     .success(function(user) {
@@ -81,22 +97,85 @@ router.get('/delete', function(req, res) {
     });
 });
 
-router.get('/search', function(req, res) {
-  var subs = validator.escape(req.param('keyword'));
+router.get('/search', getUserByAccessToken, function(req, res) {
+  req.subs = '\'' + validator.escape(req.param('keyword')) + '%\'';
 
-  query = "userID LIKE \'" + subs + '%\''; // userID LIKE 'foo%'
-  db.User
-    .findAll({
-      where: [ query ],
-      order: 'userID DESC'
-    })
-    .success(function(users) {
+  async.waterfall([
+    function(callback) {
+      var query = "userID LIKE " + req.subs;
+      db.User
+        .findAll({
+          where: [ query ],
+          order: 'userID ASC',
+          attributes: [ 'id', 'userID', 'nickname' ]
+        })
+        .success(function(users) {
+          callback(null, users);
+        });
+    },
+    function(users, callback) {
+      var query = "targetUserID LIKE " + req.subs;
+      db.Request
+        .findAll({
+          where: sequelize.and({ userID: req.user.userID }, { enabled: true }, [ query ] )
+        })
+        .success(function(requests){
+          for (var i = requests.length - 1; i >= 0; i--) {
+            for (var j = users.length - 1; j >= 0; j--) {
+              if( requests[i].targetUserID == users[j].userID ) {
+                users[j].sent = true;
+              }
+            };
+          };
+          callback(null, users);
+        });
+    },
+    function(users, callback) {
+      var query = "targetUserID LIKE " + req.subs;
+      db.Relationship
+        .findAll({
+          where: sequelize.and( { userID: req.user.userID }, [ query ] )
+        })
+        .success(function(relationships){
+          for (var i = relationships.length - 1; i >= 0; i--) {
+            for (var j = users.length - 1; j >= 0; j--) {
+              if( relationships[i].targetUserID == users[j].userID ) {
+                users[j].friend = true;
+              }
+            };
+          };
+          callback(null, users);
+        });
+    }], 
+    function(err, users) {
+      if( err ) {
+        res.send({
+          result: RESULT_CODE_FAIL,
+          message: 'failed to search user'
+        });        
+        return;
+      }
+
       var arr = [];
       for (var i = users.length - 1; i >= 0; i--) {
-        var json = {};
-        json.userID = users[i].userID;
-        json.nickname = users[i].nickname;
-        arr.push( json );
+        if( users[i].userID == req.user.userID ) {
+          continue;
+        }
+
+        var json = {
+          userID: users[i].userID,
+          sent: false,
+          friend: false
+        };
+
+        if( users[i].sent ) {
+          json.sent = true;
+        }
+        if( users[i].friend ) {
+          json.friend = true;
+        }
+
+        arr.push(json);
       };
 
       res.send({
