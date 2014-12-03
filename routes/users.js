@@ -248,26 +248,56 @@ router.get('/ask', getUserByAccessToken, function(req, res) {
       });
   }
 
-  db.Request
-    .findOrCreate( { userID: req.user.userID, targetUserID: req.param('target_userid') } )
-    .success(function (request, created){
-      // completely new request instance!
-      if( created ) {
-        sendRequest(request);        
+  async.waterfall([
+    function(callback) {
+      db.Relationship
+        .find({
+          where: {
+            userID: req.user.userID,
+            targetUserID: req.param('target_userid')
+          }
+        })
+        .success(function(relationship) {
+          if( relationship ) {
+            callback(relationship);
+            return;
+          }
+          callback(null);
+        });
+    },
+    function(callback) {
+      db.Request
+        .findOrCreate( { userID: req.user.userID, targetUserID: req.param('target_userid') } )
+        .success(function (request, created){
+          // completely new request instance!
+          if( created ) {
+            callback(null, request);
+            return;
+          }
+
+          request.enabled = true;
+          request.save()
+            .success(function(){
+              callback(null, request);
+            });
+        })
+        .error(function(err){
+          callback(err);
+        });
+    }], 
+    function(err, request) {
+      if( err ) {
+        res.send({
+          result: RESULT_CODE_FAIL,
+          message: 'failed to request to user'
+        });
         return;
       }
 
-      request.enabled = true;
-      request.save()
-        .success(function(){
-          sendRequest(request);
-        });
-    })
-    .error(function(err){
+      sendRequest(request);
       res.send({
-        result: RESULT_CODE_FAIL,
-        message: 'unknown error',
-        error: err
+        result: RESULT_CODE_SUCCESS,
+        data: request
       });
     });
 });
