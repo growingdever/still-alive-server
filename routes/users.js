@@ -44,22 +44,16 @@ function getUserByAccessToken(req, res, next) {
     })
 }
 
-function sendGCM(request, gcm_id) {
+function sendGCM(body_data, gcm_id, callback) {
   // send gcm to target user
   var headers = {
     'Content-Type': 'application/json',
     'Authorization': 'key=' + GCM_API_KEY
   };
 
-  var registration_ids = [ gcm_id ];
-
   var body = {
-    'registration_ids' : registration_ids,
-    'data' : {
-      requestID: request.id,
-      senderID: request.userID,
-      date: request.updatedAt
-    }
+    registration_ids : [ gcm_id ],
+    data : body_data
   };
 
   var options = {
@@ -69,7 +63,23 @@ function sendGCM(request, gcm_id) {
     body: JSON.stringify(body)
   };
 
-  httprequest(options, function(error, response, body){});
+  httprequest(options, function(error, response, body) {
+    callback(response);
+  });
+}
+
+function sendGCMForRequest(request, gcm_id, callback) {
+  var data = {
+    requestID: request.id,
+    senderID: request.userID,
+    date: request.updatedAt
+  };
+
+  sendGCM(data, gcm_id, callback);
+}
+
+function sendGCMForPoke(sender, gcm_id, callback) {
+  sendGCM(sender, gcm_id, callback);
 }
 
 
@@ -255,12 +265,13 @@ router.get('/ask', getUserByAccessToken, function(req, res) {
     db.User
       .find({ where: { userID: request.targetUserID } })
       .success(function(user){
-        res.send({
-          result: RESULT_CODE_SUCCESS,
-          message: 'send request successfully!',
-          request_id: request.id
+        sendGCMForRequest(request, user.gcmRegistrationID, function(response) {
+          res.send({
+            result: RESULT_CODE_SUCCESS,
+            message: 'send request successfully!',
+            request_id: request.id
+          });
         });
-        sendGCM(request, user.gcm_id);
       });
   }
 
@@ -460,6 +471,24 @@ router.get('/reject', getUserByAccessToken, function(req, res){
         });
     });
 });
+
+router.get('/poke', getUserByAccessToken, function(req, res) {
+  db.User
+    .find({ where: { userID: req.param('target_userid') } })
+    .success(function(user) {
+      var json = {
+        senderUserId: req.user.userID,
+        pokeAt: Date.now()
+      };
+
+      sendGCMForPoke(json, user.gcmRegistrationID, function(response) {
+        res.send({
+          success: RESULT_CODE_SUCCESS,
+          message: 'successfully requested!'
+        });
+      });
+    });
+})
 
 
 
