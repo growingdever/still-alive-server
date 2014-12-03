@@ -106,7 +106,7 @@ router.get('/search', getUserByAccessToken, function(req, res) {
       db.User
         .findAll({
           where: [ query ],
-          order: 'userID ASC',
+          order: 'userID DESC',
           attributes: [ 'id', 'userID', 'nickname' ]
         })
         .success(function(users) {
