@@ -97,10 +97,11 @@ router.get('/delete', function(req, res) {
     });
 });
 
-router.post('/state_message', getUserByAccessToken, function(req, res){
+router.post('/state_message', function(req, res){
   db.User
-    .find({ where: { userID: req.user.userID } })
+    .find({ where: { accessToken: req.body.access_token } })
     .success(function(user){
+      
       user.stateMessage = req.body.message;
       user.save()
         .success(function(){
