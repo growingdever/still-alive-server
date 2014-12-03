@@ -295,10 +295,6 @@ router.get('/ask', getUserByAccessToken, function(req, res) {
       }
 
       sendRequest(request);
-      res.send({
-        result: RESULT_CODE_SUCCESS,
-        data: request
-      });
     });
 });
 

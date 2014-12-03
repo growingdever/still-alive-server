@@ -17,6 +17,31 @@ function accessTokenCheck(req, res, next) {
   next();
 }
 
+function getUserByAccessToken(req, res, next) {
+  if( !req.param('access_token') ) {
+    res.send({
+      result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
+      message: 'give me a valid access token!'
+    });
+    return;
+  }
+
+  db.User
+    .find({ where: { accessToken: req.param('access_token') } })
+    .success(function(user){
+      if( !user ) {
+        res.send({
+          result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
+          message: 'give me a valid access token!'
+        });
+        return;
+      }
+
+      req.user = user;
+      next();
+    })
+}
+
 /* GET home page. */
 router.get('/', function(req, res) {
   res.render('index', { title: 'Express' });
@@ -65,49 +90,35 @@ router.get('/test2', function(req, res){
     });
 });
 
-router.get('/list', accessTokenCheck, function(req, res) {
-  db.User
-    .find({ where: { accessToken: req.param('access_token') } })
-    .success(function(user) {
-      if( ! user ) {
+router.get('/list', getUserByAccessToken, function(req, res) {
+  db.Relationship
+    .findAll({ where: { userID: req.user.userID } })
+    .success( function(users) {
+      if ( ! users ) {
         res.send({
-          result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
-          message: 'give me a valid access token!'
+          success: RESULT_CODE_FAIL,
+          message: 'failed to load data from db'
         });
         return;
       }
 
-      db.Relationship
-        .findAll({
-          where: { userID: user.userID }
+      var targets = [];
+      for (var i = users.length - 1; i >= 0; i--) {
+        targets.push( users[i].targetUserID );
+      };
+
+      db.User
+        .findAll({ 
+          where: { userID: targets },
+          attributes: [ 'id', 'userID', 'stateMessage', 'updatedAt' ],
+          order: 'userID ASC'
         })
-        .success( function(users) {
-          if ( ! users ) {
-            res.send({
-              success: RESULT_CODE_FAIL,
-              message: 'failed to load data from db'
-            });
-            return;
-          }
-
-          var targets = [];
-          for (var i = users.length - 1; i >= 0; i--) {
-            targets.push( users[i].targetUserID );
-          };
-
-          db.User
-            .findAll({ 
-              where: { userID: targets },
-              attributes: [ 'id', 'userID', 'updatedAt' ],
-              order: 'userID ASC'
-            })
-            .success(function(users) {
-              res.send({
-                result: RESULT_CODE_SUCCESS,
-                data: users
-              });
-            });      
-        });
+        .success(function(users) {
+          res.send({
+            result: RESULT_CODE_SUCCESS,
+            data: users
+          });
+        });      
     });
 });
 

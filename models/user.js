@@ -5,7 +5,11 @@ module.exports = function(sequelize, DataTypes) {
     nickname: DataTypes.STRING,
     phoneNumber: DataTypes.STRING,
     gcmRegistrationID: DataTypes.STRING,
-    accessToken: DataTypes.STRING
+    accessToken: DataTypes.STRING,
+    stateMessage: { 
+      type: DataTypes.STRING, 
+      defaultValue: 'Write in C....' 
+    }
   }, {
     classMethods: {
       associate: function(models) {
