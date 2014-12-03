@@ -97,6 +97,21 @@ router.get('/delete', function(req, res) {
     });
 });
 
+router.post('/state_message', getUserByAccessToken, function(req, res){
+  db.User
+    .find({ where: { userID: req.user.userID } })
+    .success(function(user){
+      user.stateMessage = req.body.message;
+      user.save()
+        .success(function(){
+          res.send({
+            success: RESULT_CODE_SUCCESS,
+            message: 'successfully changed!'
+          });
+        });
+    });
+});
+
 router.get('/search', getUserByAccessToken, function(req, res) {
   req.subs = '\'' + validator.escape(req.param('keyword')) + '%\'';
 
