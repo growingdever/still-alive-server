@@ -47,38 +47,6 @@ router.get('/', function(req, res) {
   res.render('index', { title: 'Express' });
 });
 
-router.get('/test', function(req, res) {
-  var headers = {
-    'Content-Type': 'application/json',
-    'Authorization': 'key=' + GCM_API_KEY
-  };
-
-  var registration_ids = [];
-
-  var body = {
-    'registration_ids' : registration_ids,
-    'data' : {
-      message: 'hello'
-    }
-  };
-
-  var options = {
-    url: 'https://android.googleapis.com/gcm/send',
-    method: 'POST',
-    headers: headers,
-    body: JSON.stringify(body)
-  };
-
-  request(options, function(error, response, body){
-    if( error ) {
-      res.send({success: 0});
-    }
-    else {
-      res.send({success: 1});
-    }
-  });
-});
-
 router.get('/test2', function(req, res){
   db.User
     .findAll({
@@ -110,7 +78,7 @@ router.get('/list', getUserByAccessToken, function(req, res) {
       db.User
         .findAll({ 
           where: { userID: targets },
-          attributes: [ 'id', 'userID', 'stateMessage', 'updatedAt' ],
+          attributes: [ 'userID', 'nickname', 'phoneNumber', 'stateMessage', 'updatedAt' ],
           order: 'userID ASC'
         })
         .success(function(users) {
@@ -122,27 +90,13 @@ router.get('/list', getUserByAccessToken, function(req, res) {
     });
 });
 
-router.get('/update', accessTokenCheck, function(req, res) {
-  db.User
-    .find({ where: { accessToken: req.param('access_token') } })
-    .success(function(user) {
-      if( ! user ) {
-        res.send({
-          result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
-          message: 'not valid access token'
-        });
-        return;
-      }
-
-      var date = new Date();
-      user.updatedAt = date;
-      user.save().success(function() {
-        res.send({
-          result: RESULT_CODE_SUCCESS,
-          message: 'ok. you are still alive!'
-        });
-      });
+router.get('/update', getUserByAccessToken, function(req, res) {
+  req.user.save().success(function() {
+    res.send({
+      result: RESULT_CODE_SUCCESS,
+      message: 'ok. you are still alive!'
     });
+  });
 });
 
 module.exports = router;
