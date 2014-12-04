@@ -5,6 +5,7 @@ var sequelize = require('sequelize');
 var async = require('async');
 var validator = require('validator');
 var httprequest = require('request');
+var moment = require('moment');
 
 
 function accessTokenCheck(req, res, next) {
@@ -70,10 +71,12 @@ function sendGCM(body_data, gcm_id, callback) {
 
 function sendGCMForRequest(request, gcm_id, callback) {
   var data = {
-    requestID: request.id,
-    senderID: request.userID,
+    type: PUSH_MESSAGE_TYPE_REQUEST_RELATIONSHIP,
+    senderUserID: request.userID,
     date: request.updatedAt
   };
+
+  console.log(data);
 
   sendGCM(data, gcm_id, callback);
 }
@@ -473,18 +476,53 @@ router.get('/reject', getUserByAccessToken, function(req, res){
 });
 
 router.get('/poke', getUserByAccessToken, function(req, res) {
-  db.User
-    .find({ where: { userID: req.param('target_userid') } })
-    .success(function(user) {
+  async.waterfall([
+    function(callback) {
+      db.Relationship
+        .find({
+          where: sequelize.and( { userID: req.user.userID }, { targetUserID: req.param('target_userid') } )
+        })
+        .success(function(relationship) {
+          if( !relationship ) {
+            callback({
+              success: RESULT_CODE_NOT_FOUND_RELATIONSHIP,
+              message: 'cannot found relationship with target user'
+            });
+            return;
+          }
+          callback(null, relationship);
+        });
+    },
+    function(relationship, callback) {
+      db.User
+        .find({ where: { userID: relationship.targetUserID } })
+        .success(function(user) {
+          if( !user ) {
+            callback({
+              success: RESULT_CODE_NOT_FOUND_USERID,
+              message: 'cannot found user'
+            });
+            return;
+          }
+          callback(null, user);
+        });
+    }], function(err, user) {
+      if( err ) {
+        res.send(err);
+        return;
+      }
+
       var json = {
-        senderUserId: req.user.userID,
-        pokeAt: Date.now()
+        type: PUSH_MESSAGE_TYPE_REQUEST_UPDATING,
+        senderUserID: req.user.userID,
+        date: moment().format('YYYY-MM-DDTHH:mm:ss.SSSZZ')
       };
 
       sendGCMForPoke(json, user.gcmRegistrationID, function(response) {
         res.send({
           success: RESULT_CODE_SUCCESS,
-          message: 'successfully requested!'
+          message: 'successfully requested!',
+          data: json
         });
       });
     });
