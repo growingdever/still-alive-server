@@ -13,60 +13,89 @@ router.get('/', function(req, res) {
   res.send(json);
 });
 
-router.get('/regist', function(req, res) {
-  async.waterfall([
-    function(callback) {
-      db.User
-      .find({
-        where: {
-          'userid': req.param('userid')
-        }
-      })
-      .success(function (user) {
-        if( user ) {
-          res.send({
-            result: RESULT_CODE_ALREADY_EXIST_USERID,
-            message: 'already exist user id'
-          });
-          return;
-        }
+router.post('/regist', function(req, res) {
+  if( !req.body.gcm_reg_id ) {
+    res.send({
+      result: RESULT_CODE_NEED_GCM_REG_ID,
+      message: 'must need gcm registration id'
+    });
+    return;
+  }
 
-        callback(null);
-      })
-    }
-    ], function(err) {
-      if( err ) {
+  if( !req.body.phone_number ) {
+    res.send({
+      result: RESULT_CODE_NEED_PHONE_NUMBER,
+      message: 'must need gcm registration id'
+    });
+    return;
+  }
+
+  db.User
+    .find({
+      where: {
+        userID: req.body.userid
+      }
+    })
+    .success(function (user) {
+      if( user ) {
         res.send({
-          result: RESULT_CODE_FAIL,
-          message: 'unknown error'
-        })
+          result: RESULT_CODE_ALREADY_EXIST_USERID,
+          message: 'already exist user id'
+        });
         return;
       }
 
-      bcrypt.hash(req.param('password'), 
+      bcrypt.hash(req.body.password, 
         8, 
         function(err, hash) {
+          if( err ) {
+            res.send({
+              result: RESULT_CODE_FAIL,
+              message: 'unknown error'
+            })
+            return;
+          }
+
           var data = { 
-            'userID': req.param('userid'),
-            'password': hash
+            nickname: req.body.nickname,
+            userID: req.body.userid,
+            password: hash,
+            phoneNumber: req.body.phone_number,
+            gcmRegistrationID: req.body.gcm_reg_id
           };
 
+          console.log(data);
+
           db.User
-            .create(data)
-            .complete(function(err, user){
-              if( err ) {
-                res.send({
-                  result: RESULT_CODE_ERROR,
-                  message: 'error occured...'
-                });
-              } else {
-                res.send({
-                  result: RESULT_CODE_SUCCESS,
-                  message: 'welcome!'
-                })
+            .findOrCreate(data)
+            .success(function(user, created){
+              if( !created ) {
+                if( !user ) {
+                  res.send({
+                    result: RESULT_CODE_FAIL,
+                    message: 'unknown error'
+                  });
+                } else {
+                  res.send({
+                    result: RESULT_CODE_ALREADY_EXIST_USERID,
+                    message: 'already exist user id'
+                  });
+                }
+                return;
               }
+
+              res.send({
+                result: RESULT_CODE_SUCCESS,
+                message: 'welcome!'
+              })
+            })
+            .error(function(err){
+              res.send({
+                result: RESULT_CODE_FAIL,
+                message: 'unknown error'
+              })
             });
-      });
+        });
     });
 });
 
@@ -113,7 +142,7 @@ router.get('/signin', function(req, res) {
       db.User
       .find({
         where: {
-          'userid': req.param('userid')
+          userID: req.param('userid')
         }
       })
       .success(function (user) {
