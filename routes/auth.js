@@ -56,43 +56,29 @@ router.post('/regist', function(req, res) {
             return;
           }
 
+          var token = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {var r = Math.random()*16|0,v=c=='x'?r:r&0x3|0x8;return v.toString(16);});
           var data = { 
             nickname: req.body.nickname,
             userID: req.body.userid,
             password: hash,
             phoneNumber: req.body.phone_number,
-            gcmRegistrationID: req.body.gcm_reg_id
+            gcmRegistrationID: req.body.gcm_reg_id,
+            accessToken: token
           };
 
-          console.log(data);
-
           db.User
-            .findOrCreate(data)
-            .success(function(user, created){
-              if( !created ) {
-                if( !user ) {
-                  res.send({
-                    result: RESULT_CODE_FAIL,
-                    message: 'unknown error'
-                  });
-                } else {
-                  res.send({
-                    result: RESULT_CODE_ALREADY_EXIST_USERID,
-                    message: 'already exist user id'
-                  });
-                }
-                return;
-              }
-
+            .create(data)
+            .success(function(user){
               res.send({
                 result: RESULT_CODE_SUCCESS,
-                message: 'welcome!'
+                message: 'welcome!',
+                accessToken: user.accessToken
               })
             })
             .error(function(err){
               res.send({
                 result: RESULT_CODE_FAIL,
-                message: 'unknown error'
+                message: 'fail to instantiate user'
               })
             });
         });
