@@ -190,6 +190,7 @@ router.get('/signin', function(req, res) {
 
 router.get('/signout', getUserByAccessToken, function(req, res) {
   req.user.accessToken = "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy";
+  req.user.gcmRegistrationID = "";
   req.user.save().success(function() {
     res.send({
       result: RESULT_CODE_SUCCESS,
