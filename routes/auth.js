@@ -5,6 +5,32 @@ var bcrypt = require('bcrypt');
 var async = require('async');
 
 
+function getUserByAccessToken(req, res, next) {
+  if( !req.param('access_token') ) {
+    res.send({
+      result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
+      message: 'give me a valid access token!'
+    });
+    return;
+  }
+
+  db.User
+    .find({ where: { accessToken: req.param('access_token') } })
+    .success(function(user){
+      if( !user ) {
+        res.send({
+          result: RESULT_CODE_NOT_VALID_ACCESS_TOKEN,
+          message: 'give me a valid access token!'
+        });
+        return;
+      }
+
+      req.user = user;
+      next();
+    })
+}
+
+
 router.get('/', function(req, res) {
   var json = {
     result: 1,
@@ -160,6 +186,16 @@ router.get('/signin', function(req, res) {
         });
       });
     });
+});
+
+router.get('/signout', getUserByAccessToken, function(req, res) {
+  req.user.accessToken = "";
+  req.user.save().success(function() {
+    res.send({
+      result: RESULT_CODE_SUCCESS,
+      message: 'see you next time!'
+    });
+  });
 });
 
 
