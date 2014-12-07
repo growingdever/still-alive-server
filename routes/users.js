@@ -520,7 +520,7 @@ router.get('/poke', getUserByAccessToken, function(req, res) {
 
       sendGCMForPoke(json, user.gcmRegistrationID, function(response) {
         res.send({
-          success: RESULT_CODE_SUCCESS,
+          result: RESULT_CODE_SUCCESS,
           message: 'successfully requested!',
           data: json
         });
